@@ -32,6 +32,8 @@ PDF hasil ekspor disimpan ke **Download/PDF Signer/**.
   - Halaman yang diputar (`/Rotate` 90°, 180°, 270°) didukung.
 - **Pratinjau PDF asli** (dirender dengan pdf.js) + navigasi halaman & zoom.
 - **Unduh PDF** dengan tanda tangan sudah menyatu di dalam file.
+- **Desain Claymorphism 3D Modern**
+  - Antarmuka bertema *claymorphism* dengan permukaan 3D empuk (*inflated clay*), *double shadow* lembut, tombol taktil interaktif, dan palet warna yang nyaman di mata.
 - **Tampilan ramah layar Android** — navigasi bawah, panel geser (bottom sheet), tombol besar, dan aman dari notch/gesture bar.
 - **100% offline** setelah file tersedia; tidak ada data yang keluar dari perangkat.
 - Library, font, standard font PDF, dan cMap sudah dibundel di `vendor/` & `fonts/`.
