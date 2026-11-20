@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#4f46e5">
+<title>PDF Signer — Tanda Tangan PDF</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%234f46e5'/%3E%3Cpath d='M14 46c8-2 10-14 16-18 5-4 9-8 13-6 5 3-2 12-7 16-6 5-12 6-16 4' fill='none' stroke='white' stroke-width='4' stroke-linecap='round'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <span class="brand-icon">✒</span>
+    <div class="brand-text">
+      <h1>PDF Signer</h1>
+      <p>Bubuhkan tanda tangan, langsung di perangkat</p>
+    </div>
+  </div>
+  <div class="top-actions">
+    <button id="btnPanel" class="btn ghost only-mobile" type="button">✍ Tanda Tangan</button>
+    <button id="btnOpen" class="btn" type="button">📂 Buka PDF</button>
+    <button id="btnDownload" class="btn primary" type="button" disabled>⬇ Unduh PDF</button>
+  </div>
+</header>
+
+<main class="app">
+
+  <aside class="panel" id="panel" aria-label="Panel tanda tangan">
+    <div class="panel-head">
+      <h2>Buat Tanda Tangan</h2>
+      <button id="btnClosePanel" class="icon-btn only-mobile" type="button" aria-label="Tutup panel">×</button>
+    </div>
+
+    <div class="tabs" role="tablist">
+      <button class="tab active" data-tab="draw" role="tab" type="button">Gambar</button>
+      <button class="tab" data-tab="type" role="tab" type="button">Ketik</button>
+      <button class="tab" data-tab="upload" role="tab" type="button">Unggah</button>
+    </div>
+
+    <div class="tab-pane active" data-pane="draw">
+      <div class="pad-wrap">
+        <canvas id="pad" width="1000" height="320" aria-label="Area gambar tanda tangan"></canvas>
+        <div class="pad-hint" id="padHint">Gambar tanda tangan di sini</div>
+      </div>
+      <div class="row">
+        <label class="slider-field">
+          <span>Tebal pena</span>
+          <input type="range" id="penWidth" min="1" max="10" step="0.5" value="3.5">
+        </label>
+        <button class="btn small ghost" id="btnUndo" type="button">↶ Undo</button>
+        <button class="btn small ghost" id="btnClearPad" type="button">Hapus</button>
+      </div>
+    </div>
+
+    <div class="tab-pane" data-pane="type">
+      <label class="field">Nama / teks
+        <input id="typeText" type="text" placeholder="Nama Anda" maxlength="60" autocomplete="off">
+      </label>
+      <div class="row">
+        <label class="field grow">Gaya huruf
+          <select id="typeFont">
+            <option value="Great Vibes">Great Vibes</option>
+            <option value="Caveat">Caveat</option>
+            <option value="cursive">Cursive (sistem)</option>
+          </select>
+        </label>
+        <label class="slider-field">
+          <span>Ukuran</span>
+          <input type="range" id="typeSize" min="48" max="160" step="2" value="110">
+        </label>
+      </div>
+    </div>
+
+    <div class="tab-pane" data-pane="upload">
+      <label class="file-drop" id="uploadDrop">
+        <input type="file" id="fileImg" accept="image/png,image/jpeg,image/webp,image/*" hidden>
+        <strong>Pilih gambar tanda tangan</strong>
+        <small>PNG / JPG · latar transparan lebih bagus</small>
+      </label>
+      <label class="check"><input type="checkbox" id="cleanWhite" checked> Hilangkan latar putih (foto kertas)</label>
+      <div class="upload-preview" id="uploadPreview" hidden>
+        <img id="uploadPreviewImg" alt="Pratinjau tanda tangan">
+      </div>
+    </div>
+
+    <div class="color-row">
+      <span>Warna</span>
+      <button class="swatch active" data-color="#111827" style="--c:#111827" type="button" aria-label="Hitam"></button>
+      <button class="swatch" data-color="#1e3a8a" style="--c:#1e3a8a" type="button" aria-label="Biru"></button>
+      <button class="swatch" data-color="#b91c1c" style="--c:#b91c1c" type="button" aria-label="Merah"></button>
+      <button class="swatch" data-color="#0f766e" style="--c:#0f766e" type="button" aria-label="Hijau"></button>
+    </div>
+
+    <button class="btn primary wide" id="btnUse" type="button">Gunakan tanda tangan ini</button>
+    <p class="panel-note">
+      Setelah ditekan, ketuk halaman PDF untuk menempel. Geser untuk memindah,
+      tarik bulatan di sudut untuk mengubah ukuran.
+    </p>
+
+    <div class="sig-preview" id="sigPreview" hidden>
+      <span>Pratinjau</span>
+      <img id="sigPreviewImg" alt="Pratinjau tanda tangan">
+    </div>
+  </aside>
+
+  <section class="viewer-wrap">
+    <div class="toolbar">
+      <div class="tool-group">
+        <button id="btnZoomOut" class="icon-btn" type="button" aria-label="Perkecil">−</button>
+        <span id="zoomLabel" class="tool-label">100%</span>
+        <button id="btnZoomIn" class="icon-btn" type="button" aria-label="Perbesar">+</button>
+        <button id="btnFit" class="btn small ghost" type="button">Pas lebar</button>
+      </div>
+      <div class="tool-group page-nav">
+        <button id="btnPrevPage" class="icon-btn" type="button" aria-label="Halaman sebelumnya">‹</button>
+        <span id="pageLabel" class="tool-label">– / –</span>
+        <button id="btnNextPage" class="icon-btn" type="button" aria-label="Halaman berikutnya">›</button>
+      </div>
+      <div class="tool-group right">
+        <span id="fileName" class="tool-label muted file-name"></span>
+        <span id="sigCount" class="tool-label muted">0 tanda tangan</span>
+        <button id="btnDeleteSig" class="btn small danger" type="button" disabled>Hapus</button>
+      </div>
+    </div>
+
+    <div class="viewer" id="viewer">
+      <div class="empty-state" id="emptyState">
+        <div class="empty-inner">
+          <div class="empty-icon">📄</div>
+          <h3>Belum ada dokumen</h3>
+          <p>Tarik file PDF ke sini, atau tekan <strong>Buka PDF</strong>.</p>
+          <p class="empty-note">Semua proses berjalan di perangkat Anda — file tidak diunggah ke mana pun.</p>
+        </div>
+      </div>
+      <div class="pages" id="pages"></div>
+    </div>
+  </section>
+</main>
+
+<div class="backdrop" id="backdrop" hidden></div>
+
+<div class="hint" id="hint" hidden>
+  <span>Ketuk halaman untuk menempelkan tanda tangan</span>
+  <button id="btnCancelPlace" class="btn small ghost" type="button">Batal</button>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<input type="file" id="filePdf" accept="application/pdf,.pdf" hidden>
+
+<script src="vendor/pdf-lib.min.js"></script>
+<script src="vendor/pdf.min.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
