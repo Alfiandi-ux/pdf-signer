@@ -1,0 +1,80 @@
+plugins {
+    id 'com.android.application'
+}
+
+def webRoot = rootProject.projectDir.parentFile
+def generatedAssets = layout.buildDirectory.dir("generated/webAssets")
+
+// Salin aplikasi web (di root repo) ke assets APK saat build, supaya
+// tidak ada duplikasi file dan web + APK selalu memakai sumber yang sama.
+tasks.register("syncWebAssets", Sync) {
+    from(webRoot) {
+        include "index.html"
+        include "css/**"
+        include "js/**"
+        include "fonts/**"
+        include "vendor/**"
+        include "contoh.pdf"
+    }
+    into generatedAssets
+}
+
+tasks.configureEach { task ->
+    if (task.name == "preBuild") {
+        task.dependsOn("syncWebAssets")
+    }
+}
+
+android {
+    namespace 'id.alfiandi.pdfsigner'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId "id.alfiandi.pdfsigner"
+        minSdk 24
+        targetSdk 35
+        versionCode 1
+        versionName "1.0.0"
+    }
+
+    def keystorePath = System.getenv("KEYSTORE_PATH")
+    def keystorePassword = System.getenv("KEYSTORE_PASSWORD")
+    def keyAliasName = System.getenv("KEY_ALIAS")
+    def keyPasswordValue = System.getenv("KEY_PASSWORD")
+
+    signingConfigs {
+        if (keystorePath) {
+            release {
+                storeFile file(keystorePath)
+                storePassword keystorePassword
+                keyAlias keyAliasName
+                keyPassword keyPasswordValue
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            shrinkResources false
+            // Pakai keystore release bila tersedia (CI), jika tidak pakai
+            // debug signing agar APK tetap bisa dipasang.
+            signingConfig keystorePath ? signingConfigs.release : signingConfigs.debug
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    sourceSets {
+        main {
+            assets.srcDir(generatedAssets)
+        }
+    }
+}
+
+dependencies {
+    implementation 'androidx.webkit:webkit:1.12.1'
+}

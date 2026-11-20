@@ -5,6 +5,15 @@ Semua proses berjalan di browser — file tidak pernah diunggah ke server mana p
 
 ![tipe](https://img.shields.io/badge/offline-100%25-4f46e5) ![lisensi](https://img.shields.io/badge/stack-HTML%20%2B%20JS-lightgrey)
 
+## Unduh APK (Android)
+
+APK siap pasang tersedia di halaman **[Releases](https://github.com/Alfiandi-ux/pdf-signer/releases/latest)**
+(berkas `pdf-signer-*.apk`). Buka di HP, izinkan "Instal dari sumber tidak
+dikenal" bila diminta, lalu pasang. Aplikasi APK berjalan sepenuhnya offline —
+semua aset sudah dibundel di dalamnya.
+
+PDF hasil ekspor disimpan ke **Download/PDF Signer/**.
+
 ## Fitur
 
 - **Tiga cara membuat tanda tangan**
@@ -71,6 +80,29 @@ tanda tangan yang sudah ditempel.
 - Ukuran file maksimal 120 MB.
 - Font & library dimuat lokal, jadi aplikasi tetap jalan tanpa internet.
 
+## Membangun APK sendiri
+
+APK dibangun otomatis lewat GitHub Actions
+(`.github/workflows/build-apk.yml`). Setiap kali workflow dijalankan, APK
+diunggah ke halaman Releases dengan tag yang ditentukan.
+
+```bash
+# lewat GitHub CLI
+gh workflow run build-apk.yml -f version=v1.0.0
+```
+
+Untuk build lokal dibutuhkan Android SDK + JDK 17:
+
+```bash
+cd android
+./gradlew assembleRelease
+# hasil: android/app/build/outputs/apk/release/app-release.apk
+```
+
+Tanpa keystore rilis, build memakai debug signing agar APK tetap bisa dipasang.
+Di CI, keystore diambil dari secret `KEYSTORE_BASE64` (beserta
+`KEYSTORE_PASSWORD`, `KEY_ALIAS`, `KEY_PASSWORD`).
+
 ## Struktur
 
 ```
@@ -85,6 +117,10 @@ pdf-signer/
 │   ├── pdf.worker.min.js
 │   ├── standard_fonts/    # font standar PDF (offline)
 │   └── cmaps/             # cMap untuk PDF CJK (offline)
+├── android/               # pembungkus WebView untuk APK
+│   ├── app/               # kode Java, manifest, ikon
+│   └── gradlew
+├── .github/workflows/     # build APK + Release otomatis
 ├── contoh.pdf             # contoh dokumen untuk uji coba
 ├── start.sh
 └── README.md

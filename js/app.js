@@ -925,6 +925,42 @@ function cancelPlacing(notify = true) {
    6. Simpan PDF bertanda tangan
    ===================================================================== */
 
+/* Di APK Android, unduhan blob tidak didukung WebView. Data dikirim ke
+   jembatan native per potongan base64, lalu disimpan ke folder Download. */
+function bytesToBase64(bytes) {
+  let binary = '';
+  const step = 0x8000;
+  for (let i = 0; i < bytes.length; i += step) {
+    binary += String.fromCharCode.apply(null, bytes.subarray(i, i + step));
+  }
+  return btoa(binary);
+}
+
+async function saveViaAndroid(blob, name) {
+  const bridge = window.PdfSignerAndroid;
+  if (!bridge || typeof bridge.beginSave !== 'function') return null;
+
+  if (!bridge.beginSave(name)) {
+    throw new Error('tidak dapat membuat file di perangkat');
+  }
+
+  const bytes = new Uint8Array(await blob.arrayBuffer());
+  const chunkSize = 256 * 1024;
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    const chunk = bytes.subarray(i, i + chunkSize);
+    if (!bridge.writeChunk(bytesToBase64(chunk))) {
+      bridge.endSave();
+      throw new Error('gagal menulis data PDF');
+    }
+  }
+
+  const message = bridge.endSave();
+  if (!message || /^Gagal/.test(message)) {
+    throw new Error(message || 'gagal menyimpan PDF');
+  }
+  return message;
+}
+
 async function exportPdf() {
   if (!state.pdfBytes) return;
   if (!state.signatures.length) {
@@ -975,18 +1011,24 @@ async function exportPdf() {
 
     const bytes = await doc.save();
     const blob = new Blob([bytes], { type: 'application/pdf' });
-    const url = URL.createObjectURL(blob);
+    const fileName = `${state.fileName}-signed.pdf`;
 
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${state.fileName}-signed.pdf`;
-    document.body.append(a);
-    a.click();
-    a.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 5000);
+    const androidMessage = await saveViaAndroid(blob, fileName);
+    if (androidMessage) {
+      toast(androidMessage, 'success');
+    } else {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = fileName;
+      document.body.append(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
+      toast('PDF bertanda tangan berhasil diunduh', 'success');
+    }
 
     state.exported = true;
-    toast('PDF bertanda tangan berhasil diunduh', 'success');
   } catch (err) {
     console.error(err);
     toast('Gagal membuat PDF: ' + (err && err.message ? err.message : 'kesalahan tidak diketahui'), 'error');
