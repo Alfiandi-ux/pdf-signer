@@ -611,6 +611,28 @@ function createPageEl(v) {
   num.textContent = String(v.index + 1);
 
   el.append(canvas, layer, num);
+
+  let downX = 0;
+  let downY = 0;
+  let downTime = 0;
+
+  el.addEventListener('pointerdown', (e) => {
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    downX = e.clientX;
+    downY = e.clientY;
+    downTime = performance.now();
+  });
+
+  el.addEventListener('pointerup', (e) => {
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    if (e.target.closest('.sig')) return;
+    const dx = Math.abs(e.clientX - downX);
+    const dy = Math.abs(e.clientY - downY);
+    if (dx < 12 && dy < 12 && performance.now() - downTime < 500) {
+      onPageClick(e, v);
+    }
+  });
+
   el.addEventListener('click', (e) => onPageClick(e, v));
 
   v.el = el;
@@ -715,9 +737,12 @@ function renderVisiblePages() {
    4. Menempel & mengatur tanda tangan
    ===================================================================== */
 
+let lastPageClickTime = 0;
 function onPageClick(e, v) {
   if (e.target.closest('.sig')) return;
   if (performance.now() - state.lastSigPointer < 400) return;
+  if (performance.now() - lastPageClickTime < 250) return;
+  lastPageClickTime = performance.now();
 
   if (!state.placing) {
     select(null);
@@ -725,8 +750,10 @@ function onPageClick(e, v) {
   }
 
   const rect = v.el.getBoundingClientRect();
-  const fx = clamp((e.clientX - rect.left) / rect.width, 0, 1);
-  const fy = clamp((e.clientY - rect.top) / rect.height, 0, 1);
+  const clientX = typeof e.clientX === 'number' && e.clientX > 0 ? e.clientX : (rect.left + rect.width / 2);
+  const clientY = typeof e.clientY === 'number' && e.clientY > 0 ? e.clientY : (rect.top + rect.height / 2);
+  const fx = clamp((clientX - rect.left) / rect.width, 0, 1);
+  const fy = clamp((clientY - rect.top) / rect.height, 0, 1);
 
   addSignature(v.index, fx, fy, state.placing);
   cancelPlacing(false);
@@ -939,18 +966,33 @@ async function useSignature() {
   els.sigPreview.hidden = false;
   els.sigPreviewImg.src = stamp.dataUrl;
 
-  state.placing = stamp;
-  document.body.classList.add('placing');
-  els.hint.hidden = false;
+  // Langsung tempelkan tanda tangan ke halaman aktif yang sedang dilihat
+  const pageIdx = currentPageIndex();
+  const v = state.pageViews[pageIdx];
+  if (v) {
+    const vr = els.viewer.getBoundingClientRect();
+    const pr = v.el.getBoundingClientRect();
+    let fy = 0.5;
+    if (pr.height > 0) {
+      const topVisible = Math.max(vr.top, pr.top);
+      const bottomVisible = Math.min(vr.bottom, pr.bottom);
+      if (bottomVisible > topVisible) {
+        const centerY = (topVisible + bottomVisible) / 2;
+        fy = clamp((centerY - pr.top) / pr.height, 0.15, 0.85);
+      }
+    }
+    addSignature(pageIdx, 0.5, fy, stamp);
+  }
+
+  cancelPlacing(false);
 
   if (isMobile()) closePanel();
-  toast('Ketuk halaman PDF untuk menempelkan');
 }
 
 function cancelPlacing(notify = true) {
   state.placing = null;
   document.body.classList.remove('placing');
-  els.hint.hidden = true;
+  if (els.hint) els.hint.hidden = true;
   if (notify) toast('Dibatalkan');
 }
 

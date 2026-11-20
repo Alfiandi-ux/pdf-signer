@@ -70,9 +70,8 @@ Belum punya file PDF? Buka `contoh.pdf` yang disertakan untuk mencoba.
    - tab **Gambar** → corat-coret di kotak, atur tebal/warna;
    - tab **Ketik** → isi nama, pilih gaya huruf;
    - tab **Unggah** → pilih foto tanda tangan (centang “Hilangkan latar putih” bila perlu).
-3. Tekan **Gunakan tanda tangan ini**.
-4. Ketuk halaman PDF tempat tanda tangan ingin diletakkan.
-5. Geser untuk memindah; tarik bulatan di sudut kanan-bawah untuk mengubah ukuran.
+3. Tekan **Gunakan tanda tangan ini** — tanda tangan langsung ditempel ke halaman.
+4. Geser tanda tangan untuk memindah; tarik bulatan di sudut kanan-bawah untuk mengubah ukuran.
 6. Tekan **Unduh PDF**. Hasil tersimpan sebagai `nama-file-signed.pdf`.
 
 Tombol **Hapus** di toolbar (atau tombol × pada tanda tangan) untuk membuang
