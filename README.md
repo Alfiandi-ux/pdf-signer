@@ -16,6 +16,12 @@ PDF hasil ekspor disimpan ke **Download/PDF Signer/**.
 
 ## Fitur
 
+- **Scan dokumen dengan kamera**
+  - Ambil foto langsung dari kamera belakang (ada senter & ganti kamera) atau pilih dari galeri.
+  - Tarik 4 sudut untuk mengikuti tepi kertas — gambar otomatis diluruskan (koreksi perspektif).
+  - Filter **Asli**, **Abu-abu**, dan **Hitam-putih** (ambang adaptif, tahan bayangan).
+  - Pindai beberapa halaman, hapus yang gagal, lalu jadikan satu PDF.
+  - Hasil scan bisa dibuka sebagai dokumen baru atau **digabungkan ke PDF yang sedang dibuka**.
 - **Tiga cara membuat tanda tangan**
   - Gambar langsung dengan jari / mouse (ada undo, tebal pena, warna).
   - Ketik nama dengan font tulisan tangan (Great Vibes / Caveat, tersedia offline).
@@ -26,6 +32,7 @@ PDF hasil ekspor disimpan ke **Download/PDF Signer/**.
   - Halaman yang diputar (`/Rotate` 90°, 180°, 270°) didukung.
 - **Pratinjau PDF asli** (dirender dengan pdf.js) + navigasi halaman & zoom.
 - **Unduh PDF** dengan tanda tangan sudah menyatu di dalam file.
+- **Tampilan ramah layar Android** — navigasi bawah, panel geser (bottom sheet), tombol besar, dan aman dari notch/gesture bar.
 - **100% offline** setelah file tersedia; tidak ada data yang keluar dari perangkat.
 - Library, font, standard font PDF, dan cMap sudah dibundel di `vendor/` & `fonts/`.
 
@@ -109,7 +116,9 @@ Di CI, keystore diambil dari secret `KEYSTORE_BASE64` (beserta
 pdf-signer/
 ├── index.html
 ├── css/style.css
-├── js/app.js
+├── js/
+│   ├── app.js
+│   └── scanner.js         # scan kamera, potong perspektif, filter
 ├── fonts/                 # font tulisan tangan (offline)
 ├── vendor/
 │   ├── pdf-lib.min.js     # menulis tanda tangan ke PDF

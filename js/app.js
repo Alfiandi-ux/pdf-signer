@@ -48,8 +48,15 @@ const els = {
   // topbar
   btnOpen: $('#btnOpen'),
   btnDownload: $('#btnDownload'),
-  btnPanel: $('#btnPanel'),
   btnClosePanel: $('#btnClosePanel'),
+  btnScan: $('#btnScan'),
+  btnScanEmpty: $('#btnScanEmpty'),
+  btnOpenEmpty: $('#btnOpenEmpty'),
+  // navigasi bawah (HP)
+  navScan: $('#navScan'),
+  navOpen: $('#navOpen'),
+  navSign: $('#navSign'),
+  navDownload: $('#navDownload'),
   // panel
   panel: $('#panel'),
   backdrop: $('#backdrop'),
@@ -431,7 +438,7 @@ function resetDocument() {
   els.hint.hidden = true;
   els.pages.innerHTML = '';
   els.emptyState.hidden = false;
-  els.btnDownload.disabled = true;
+  setDownloadEnabled(false);
   els.pageLabel.textContent = '– / –';
   els.zoomLabel.textContent = '100%';
   els.fileName.textContent = '';
@@ -461,9 +468,29 @@ async function openPdfFile(file) {
   toast('Membuka PDF…');
 
   let bytes;
-  let doc;
   try {
     bytes = new Uint8Array(await file.arrayBuffer());
+  } catch (err) {
+    console.error(err);
+    toast('File tidak bisa dibaca', 'error');
+    return;
+  }
+
+  const name = (file.name || 'dokumen.pdf').replace(/\.pdf$/i, '') || 'dokumen';
+  await loadPdfBytes(bytes, name);
+}
+
+/**
+ * Muat PDF dari byte (dipakai untuk file biasa maupun hasil scan).
+ */
+async function loadPdfBytes(bytes, name) {
+  if (!bytes || !bytes.length) {
+    toast('PDF kosong', 'error');
+    return false;
+  }
+
+  let doc;
+  try {
     doc = await pdfjsLib.getDocument({
       data: bytes.slice(0),
       isEvalSupported: false,
@@ -478,18 +505,18 @@ async function openPdfFile(file) {
     } else {
       toast('Gagal membuka PDF. File mungkin rusak atau terenkripsi.', 'error');
     }
-    return;
+    return false;
   }
 
   if (!doc.numPages) {
     toast('PDF tidak memiliki halaman', 'error');
-    return;
+    return false;
   }
 
   resetDocument();
   state.pdfjs = doc;
   state.pdfBytes = bytes;
-  state.fileName = (file.name || 'dokumen.pdf').replace(/\.pdf$/i, '') || 'dokumen';
+  state.fileName = (name || 'dokumen').replace(/\.pdf$/i, '') || 'dokumen';
   document.title = `${state.fileName}.pdf — PDF Signer`;
   els.fileName.textContent = `${state.fileName}.pdf`;
   els.fileName.title = `${state.fileName}.pdf`;
@@ -506,16 +533,17 @@ async function openPdfFile(file) {
     state.pageViews = [];
     els.pages.innerHTML = '';
     els.emptyState.hidden = false;
-    els.btnDownload.disabled = true;
+    setDownloadEnabled(false);
     toast('Sebagian halaman gagal dimuat', 'error');
-    return;
+    return false;
   }
 
   els.emptyState.hidden = true;
-  els.btnDownload.disabled = false;
+  setDownloadEnabled(true);
   els.viewer.scrollTop = 0;
   updatePageLabel();
   toast(`PDF siap · ${doc.numPages} halaman`, 'success');
+  return true;
 }
 
 function computeFitScale() {
@@ -866,6 +894,11 @@ function removeSignature(id) {
   updateSigCount();
 }
 
+function setDownloadEnabled(enabled) {
+  if (els.btnDownload) els.btnDownload.disabled = !enabled;
+  if (els.navDownload) els.navDownload.disabled = !enabled;
+}
+
 function updateSigCount() {
   const n = state.signatures.length;
   els.sigCount.textContent = `${n} tanda tangan`;
@@ -1085,8 +1118,70 @@ function closePanel() {
   els.backdrop.hidden = true;
 }
 
+/* =====================================================================
+   6b. Integrasi pemindai dokumen
+   ===================================================================== */
+
+function openScanner() {
+  if (window.DocScanner) {
+    window.DocScanner.open();
+  } else {
+    toast('Fitur scan tidak tersedia', 'error');
+  }
+}
+
+async function openScannedPdf(bytes, name) {
+  if (state.signatures.length) {
+    const ok = window.confirm('Buka hasil scan? Semua tanda tangan yang belum diunduh akan hilang.');
+    if (!ok) return false;
+  }
+  return loadPdfBytes(bytes, name);
+}
+
+async function appendScannedPdf(bytes, name) {
+  if (!state.pdfBytes) return openScannedPdf(bytes, name);
+
+  if (state.signatures.length) {
+    const ok = window.confirm('Tambah halaman hasil scan? Semua tanda tangan yang belum diunduh akan hilang.');
+    if (!ok) return false;
+  }
+
+  try {
+    const { PDFDocument } = PDFLib;
+    const current = await PDFDocument.load(state.pdfBytes);
+    const extra = await PDFDocument.load(bytes);
+    const copied = await current.copyPages(extra, extra.getPageIndices());
+    for (const page of copied) current.addPage(page);
+    const merged = await current.save();
+    return loadPdfBytes(merged, state.fileName);
+  } catch (err) {
+    console.error(err);
+    toast('Gagal menggabungkan hasil scan: '
+      + (err && err.message ? err.message : 'kesalahan tidak diketahui'), 'error');
+    return false;
+  }
+}
+
+if (window.DocScanner) {
+  window.DocScanner.init({
+    toast,
+    hasDocument: () => !!state.pdfjs,
+    openScan: openScannedPdf,
+    appendScan: appendScannedPdf,
+  });
+}
+
 /* Event listener dasar */
 els.btnOpen.addEventListener('click', () => els.filePdf.click());
+els.btnScan.addEventListener('click', openScanner);
+if (els.btnScanEmpty) els.btnScanEmpty.addEventListener('click', openScanner);
+if (els.btnOpenEmpty) els.btnOpenEmpty.addEventListener('click', () => els.filePdf.click());
+
+els.navScan.addEventListener('click', openScanner);
+els.navOpen.addEventListener('click', () => els.filePdf.click());
+els.navSign.addEventListener('click', openPanel);
+els.navDownload.addEventListener('click', exportPdf);
+
 els.filePdf.addEventListener('change', () => {
   const file = els.filePdf.files && els.filePdf.files[0];
   els.filePdf.value = '';
@@ -1109,7 +1204,6 @@ els.btnFit.addEventListener('click', () => setZoom(1));
 els.btnPrevPage.addEventListener('click', () => scrollToPage(currentPageIndex() - 1));
 els.btnNextPage.addEventListener('click', () => scrollToPage(currentPageIndex() + 1));
 
-els.btnPanel.addEventListener('click', openPanel);
 els.btnClosePanel.addEventListener('click', closePanel);
 els.backdrop.addEventListener('click', closePanel);
 
@@ -1182,6 +1276,7 @@ window.addEventListener('resize', debounce(() => {
 
 /* Keyboard */
 document.addEventListener('keydown', (e) => {
+  if (document.body.classList.contains('scan-open')) return; // ditangani pemindai
   const tag = (e.target && e.target.tagName ? e.target.tagName : '').toLowerCase();
   if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
 

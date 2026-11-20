@@ -15,11 +15,11 @@
     <span class="brand-icon">✒</span>
     <div class="brand-text">
       <h1>PDF Signer</h1>
-      <p>Bubuhkan tanda tangan, langsung di perangkat</p>
+      <p>Scan, tanda tangani, selesai — di perangkat</p>
     </div>
   </div>
   <div class="top-actions">
-    <button id="btnPanel" class="btn ghost only-mobile" type="button">✍ Tanda Tangan</button>
+    <button id="btnScan" class="btn ghost" type="button">📷 Scan</button>
     <button id="btnOpen" class="btn" type="button">📂 Buka PDF</button>
     <button id="btnDownload" class="btn primary" type="button" disabled>⬇ Unduh PDF</button>
   </div>
@@ -130,7 +130,11 @@
         <div class="empty-inner">
           <div class="empty-icon">📄</div>
           <h3>Belum ada dokumen</h3>
-          <p>Tarik file PDF ke sini, atau tekan <strong>Buka PDF</strong>.</p>
+          <p>Scan kertas dengan kamera, buka file PDF, atau tarik file ke sini.</p>
+          <div class="empty-actions">
+            <button id="btnScanEmpty" class="btn primary" type="button">📷 Scan dokumen</button>
+            <button id="btnOpenEmpty" class="btn" type="button">📂 Buka PDF</button>
+          </div>
           <p class="empty-note">Semua proses berjalan di perangkat Anda — file tidak diunggah ke mana pun.</p>
         </div>
       </div>
@@ -138,6 +142,13 @@
     </div>
   </section>
 </main>
+
+<nav class="mobile-nav" aria-label="Aksi utama">
+  <button id="navScan" type="button"><span class="ico">📷</span><span>Scan</span></button>
+  <button id="navOpen" type="button"><span class="ico">📂</span><span>Buka</span></button>
+  <button id="navSign" type="button"><span class="ico">✍</span><span>Tanda Tangan</span></button>
+  <button id="navDownload" type="button" disabled><span class="ico">⬇</span><span>Unduh</span></button>
+</nav>
 
 <div class="backdrop" id="backdrop" hidden></div>
 
@@ -150,8 +161,105 @@
 
 <input type="file" id="filePdf" accept="application/pdf,.pdf" hidden>
 
+<!-- ===================== Pemindai dokumen ===================== -->
+<div class="scanner" id="scanner" hidden aria-hidden="true">
+  <header class="scanner-bar">
+    <button id="scanClose" class="icon-btn light" type="button" aria-label="Tutup pemindai">×</button>
+    <div class="scanner-title">
+      <strong>Scan Dokumen</strong>
+      <span id="scanSubtitle">Posisikan dokumen di dalam bingkai</span>
+    </div>
+    <button id="scanTorch" class="icon-btn light" type="button" aria-label="Senter" hidden>⚡</button>
+    <button id="scanFlip" class="icon-btn light" type="button" aria-label="Ganti kamera" hidden>🔄</button>
+  </header>
+
+  <div class="scanner-stage" id="scanStage">
+
+    <div class="scan-camera" id="scanCamera">
+      <video id="scanVideo" playsinline muted autoplay></video>
+      <div class="scan-guide" id="scanGuide" aria-hidden="true">
+        <span class="c tl"></span><span class="c tr"></span><span class="c bl"></span><span class="c br"></span>
+      </div>
+      <div class="scan-cam-error" id="scanCamError" hidden>
+        <div class="scan-cam-error-icon">📷</div>
+        <strong>Kamera tidak bisa dibuka</strong>
+        <p id="scanCamErrorText">Izinkan akses kamera, lalu coba lagi.</p>
+        <div class="scan-cam-error-actions">
+          <button id="scanRetryCam" class="scan-secondary" type="button">Coba lagi</button>
+          <button id="scanGalleryError" class="scan-primary" type="button">Pilih dari galeri</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="scan-crop" id="scanCrop" hidden>
+      <div class="crop-box" id="cropBox">
+        <img id="cropImg" alt="Dokumen yang akan dipotong">
+        <svg class="crop-quad" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+          <path id="cropShade" class="crop-shade" fill-rule="evenodd" d=""></path>
+          <polygon id="cropPoly" class="crop-poly" points=""></polygon>
+        </svg>
+        <span class="crop-handle" data-corner="0"></span>
+        <span class="crop-handle" data-corner="1"></span>
+        <span class="crop-handle" data-corner="2"></span>
+        <span class="crop-handle" data-corner="3"></span>
+      </div>
+    </div>
+
+    <div class="scan-pages" id="scanPagesView" hidden>
+      <div class="scan-pages-head">
+        <span id="scanPagesInfo">0 halaman</span>
+        <span>Ketuk × untuk menghapus</span>
+      </div>
+      <label class="scan-merge" id="scanMergeWrap" hidden>
+        <input type="checkbox" id="scanMerge">
+        Gabungkan ke dokumen yang sedang dibuka
+      </label>
+      <div class="scan-grid" id="scanGrid"></div>
+      <div class="scan-empty" id="scanEmpty">Belum ada halaman.<br>Tekan tombol kamera untuk memindai.</div>
+    </div>
+
+    <div class="scan-busy" id="scanBusy" hidden>
+      <div class="spinner"></div>
+      <span id="scanBusyText">Memproses…</span>
+    </div>
+  </div>
+
+  <div class="scanner-actions">
+    <div class="scan-foot" id="scanFootCamera">
+      <div class="scan-foot-row">
+        <button id="scanGallery" class="scan-btn" type="button"><span class="ico">🖼</span>Galeri</button>
+        <button id="scanShutter" class="scan-shutter" type="button" aria-label="Ambil foto"></button>
+        <button id="scanDone" class="scan-btn" type="button"><span class="ico">✔</span>Selesai</button>
+      </div>
+      <div class="scan-count" id="scanCount" hidden></div>
+    </div>
+
+    <div class="scan-foot" id="scanFootCrop" hidden>
+      <div class="scan-filters" role="group" aria-label="Filter">
+        <button class="scan-chip" data-filter="color" type="button">Asli</button>
+        <button class="scan-chip" data-filter="gray" type="button">Abu-abu</button>
+        <button class="scan-chip active" data-filter="bw" type="button">Hitam-putih</button>
+      </div>
+      <div class="scan-foot-row">
+        <button id="scanRetake" class="scan-secondary" type="button">Ulangi</button>
+        <button id="scanAccept" class="scan-primary" type="button">Gunakan halaman</button>
+      </div>
+    </div>
+
+    <div class="scan-foot" id="scanFootPages" hidden>
+      <div class="scan-foot-row">
+        <button id="scanAgain" class="scan-secondary" type="button">＋ Scan lagi</button>
+        <button id="scanBuild" class="scan-primary" type="button" disabled>Buat PDF</button>
+      </div>
+    </div>
+  </div>
+
+  <input type="file" id="scanFile" accept="image/*" hidden>
+</div>
+
 <script src="vendor/pdf-lib.min.js"></script>
 <script src="vendor/pdf.min.js"></script>
+<script src="js/scanner.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>

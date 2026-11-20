@@ -13,6 +13,7 @@ import android.provider.MediaStore;
 import android.util.Base64;
 import android.view.ViewGroup;
 import android.webkit.JavascriptInterface;
+import android.webkit.PermissionRequest;
 import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceRequest;
@@ -45,10 +46,12 @@ public class MainActivity extends Activity {
             "https://appassets.androidplatform.net/assets/index.html";
     private static final int REQ_FILE_CHOOSER = 1001;
     private static final int REQ_STORAGE = 1002;
+    private static final int REQ_CAMERA = 1003;
 
     private WebView webView;
     private WebViewAssetLoader assetLoader;
     private ValueCallback<Uri[]> fileChooserCallback;
+    private PermissionRequest pendingCameraRequest;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -69,6 +72,7 @@ public class MainActivity extends Activity {
         settings.setJavaScriptCanOpenWindowsAutomatically(false);
         settings.setSupportZoom(false);
         settings.setBuiltInZoomControls(false);
+        settings.setMediaPlaybackRequiresUserGesture(false);
 
         webView.setWebViewClient(new WebViewClient() {
             @Override
@@ -79,6 +83,11 @@ public class MainActivity extends Activity {
         });
 
         webView.setWebChromeClient(new WebChromeClient() {
+            @Override
+            public void onPermissionRequest(final PermissionRequest request) {
+                runOnUiThread(() -> handlePermissionRequest(request));
+            }
+
             @Override
             public boolean onShowFileChooser(WebView view,
                                              ValueCallback<Uri[]> callback,
@@ -127,17 +136,78 @@ public class MainActivity extends Activity {
         super.onActivityResult(requestCode, resultCode, data);
     }
 
+    /**
+     * Izinkan akses kamera untuk fitur scan dokumen di WebView.
+     */
+    private void handlePermissionRequest(PermissionRequest request) {
+        boolean wantsVideo = false;
+        for (String resource : request.getResources()) {
+            if (PermissionRequest.RESOURCE_VIDEO_CAPTURE.equals(resource)) {
+                wantsVideo = true;
+                break;
+            }
+        }
+        if (!wantsVideo) {
+            request.deny();
+            return;
+        }
+        if (checkSelfPermission(Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
+            request.grant(new String[]{PermissionRequest.RESOURCE_VIDEO_CAPTURE});
+            return;
+        }
+        if (pendingCameraRequest != null) {
+            pendingCameraRequest.deny();
+        }
+        pendingCameraRequest = request;
+        requestPermissions(new String[]{Manifest.permission.CAMERA}, REQ_CAMERA);
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        if (requestCode == REQ_CAMERA) {
+            if (pendingCameraRequest != null) {
+                if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                    pendingCameraRequest.grant(new String[]{PermissionRequest.RESOURCE_VIDEO_CAPTURE});
+                } else {
+                    pendingCameraRequest.deny();
+                }
+                pendingCameraRequest = null;
+            }
+            return;
+        }
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+    }
+
     @Override
     public void onBackPressed() {
-        if (webView != null && webView.canGoBack()) {
-            webView.goBack();
-        } else {
-            super.onBackPressed();
+        if (webView == null) {
+            exitApp();
+            return;
         }
+        // Tutup overlay pemindai lebih dulu, baru navigasi/keluar.
+        webView.evaluateJavascript(
+                "(function(){try{return !!(window.DocScanner && window.DocScanner.handleBack());}"
+                        + "catch(e){return false;}})()",
+                value -> {
+                    if ("true".equals(value)) return;
+                    if (webView != null && webView.canGoBack()) {
+                        webView.goBack();
+                    } else {
+                        exitApp();
+                    }
+                });
+    }
+
+    private void exitApp() {
+        super.onBackPressed();
     }
 
     @Override
     protected void onDestroy() {
+        if (pendingCameraRequest != null) {
+            pendingCameraRequest.deny();
+            pendingCameraRequest = null;
+        }
         if (webView != null) {
             webView.removeJavascriptInterface("PdfSignerAndroid");
             webView.destroy();
