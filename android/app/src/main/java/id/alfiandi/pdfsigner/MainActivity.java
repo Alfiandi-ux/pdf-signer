@@ -197,8 +197,9 @@ public class MainActivity extends Activity {
                 output.flush();
                 output.close();
                 output = null;
-                String message = publish(tempFile, pendingName);
-                Toast.makeText(MainActivity.this, message, Toast.LENGTH_LONG).show();
+                final String message = publish(tempFile, pendingName);
+                runOnUiThread(() ->
+                        Toast.makeText(MainActivity.this, message, Toast.LENGTH_LONG).show());
                 return message;
             } catch (Exception e) {
                 lastError = e.getMessage() != null ? e.getMessage() : "kesalahan tidak diketahui";
