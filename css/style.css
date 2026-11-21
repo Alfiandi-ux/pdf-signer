@@ -718,39 +718,7 @@ body.placing .page::after {
   z-index: 3;
 }
 
-/* ============ Hint & Toast (Clay Pill Notifications) ============ */
-.hint {
-  position: fixed;
-  left: 50%;
-  bottom: 24px;
-  transform: translateX(-50%);
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  background: #1e293b;
-  color: #ffffff;
-  font-size: 13px;
-  font-weight: 600;
-  padding: 10px 14px 10px 20px;
-  border-radius: 999px;
-  box-shadow: 8px 14px 28px rgba(15, 23, 42, 0.35), inset 1.5px 1.5px 2px rgba(255, 255, 255, 0.25);
-  z-index: 60;
-  max-width: calc(100vw - 28px);
-  animation: hint-in .2s ease-out;
-}
-.hint .btn {
-  background: rgba(255, 255, 255, 0.16);
-  border-color: rgba(255, 255, 255, 0.2);
-  color: #ffffff;
-  box-shadow: none;
-}
-.hint .btn:hover { background: rgba(255, 255, 255, 0.26); }
-
-@keyframes hint-in {
-  from { opacity: 0; transform: translate(-50%, 10px); }
-  to { opacity: 1; transform: translate(-50%, 0); }
-}
-
+/* ============ Toast (Clay Pill Notifications) ============ */
 .toast {
   position: fixed;
   left: 50%;
@@ -865,12 +833,6 @@ body.placing .page::after {
   .viewer { padding: 14px 8px calc(var(--nav-h) + 24px); }
   .page { border-radius: 4px; margin-bottom: 14px; }
   .empty-inner { padding: 28px 22px; border-radius: 24px; }
-  .hint {
-    bottom: calc(var(--nav-h) + 14px);
-    font-size: 12.5px;
-    padding: 9px 12px 9px 16px;
-    gap: 10px;
-  }
   .toast { top: calc(var(--topbar-h) + 10px); }
 
   /* Floating Clay Bottom Nav */
@@ -1208,6 +1170,7 @@ body.scan-open { overflow: hidden; }
 }
 .scan-foot[hidden] { display: none; }
 .scan-foot-row { display: flex; align-items: center; gap: 12px; }
+.scan-foot-row + .scan-foot-row { margin-top: 10px; }
 .scan-foot-row .scan-primary,
 .scan-foot-row .scan-secondary { flex: 1; }
 

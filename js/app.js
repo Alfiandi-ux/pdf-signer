@@ -91,8 +91,6 @@ const els = {
   btnDeleteSig: $('#btnDeleteSig'),
   // lain-lain
   filePdf: $('#filePdf'),
-  hint: $('#hint'),
-  btnCancelPlace: $('#btnCancelPlace'),
   toast: $('#toast'),
 };
 
@@ -435,7 +433,6 @@ function resetDocument() {
   state.exported = false;
 
   document.body.classList.remove('placing');
-  els.hint.hidden = true;
   els.pages.innerHTML = '';
   els.emptyState.hidden = false;
   setDownloadEnabled(false);
@@ -992,7 +989,6 @@ async function useSignature() {
 function cancelPlacing(notify = true) {
   state.placing = null;
   document.body.classList.remove('placing');
-  if (els.hint) els.hint.hidden = true;
   if (notify) toast('Dibatalkan');
 }
 
@@ -1034,6 +1030,36 @@ async function saveViaAndroid(blob, name) {
     throw new Error(message || 'gagal menyimpan PDF');
   }
   return message;
+}
+
+/** Simpan PDF hasil scan langsung ke perangkat, tanpa membukanya di editor. */
+async function saveScannedPdf(bytes, name) {
+  const fileName = `${(name || 'scan').replace(/\.pdf$/i, '')}.pdf`;
+  const blob = new Blob([bytes], { type: 'application/pdf' });
+
+  try {
+    const androidMessage = await saveViaAndroid(blob, fileName);
+    if (androidMessage) {
+      toast(androidMessage, 'success');
+      return true;
+    }
+
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = fileName;
+    document.body.append(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
+    toast('PDF hasil scan berhasil diunduh', 'success');
+    return true;
+  } catch (err) {
+    console.error(err);
+    toast('Gagal menyimpan PDF: '
+      + (err && err.message ? err.message : 'kesalahan tidak diketahui'), 'error');
+    return false;
+  }
 }
 
 async function exportPdf() {
@@ -1210,6 +1236,7 @@ if (window.DocScanner) {
     hasDocument: () => !!state.pdfjs,
     openScan: openScannedPdf,
     appendScan: appendScannedPdf,
+    saveScan: saveScannedPdf,
   });
 }
 
@@ -1233,7 +1260,6 @@ els.filePdf.addEventListener('change', () => {
 els.btnDownload.addEventListener('click', exportPdf);
 
 els.btnUse.addEventListener('click', useSignature);
-els.btnCancelPlace.addEventListener('click', () => cancelPlacing());
 
 els.btnDeleteSig.addEventListener('click', () => {
   if (state.selectedId) removeSignature(state.selectedId);

@@ -66,6 +66,7 @@
     accept: $('#scanAccept'),
     again: $('#scanAgain'),
     build: $('#scanBuild'),
+    save: $('#scanSave'),
     close: $('#scanClose'),
     file: $('#scanFile'),
     stage: $('#scanStage'),
@@ -106,7 +107,7 @@
       el.subtitle.textContent = 'Tarik sudut mengikuti tepi dokumen';
     } else {
       el.subtitle.textContent = pages.length
-        ? `${pages.length} halaman siap dibuat PDF`
+        ? `${pages.length} halaman siap disimpan jadi PDF`
         : 'Belum ada halaman';
       el.mergeWrap.hidden = !(api && api.hasDocument());
       updatePagesUI();
@@ -543,7 +544,8 @@
     el.empty.hidden = pages.length > 0;
     el.pagesInfo.textContent = `${pages.length} halaman`;
     el.build.disabled = pages.length === 0;
-    el.build.textContent = pages.length ? `Buat PDF (${pages.length})` : 'Buat PDF';
+    el.build.textContent = pages.length ? `Buka di Signer (${pages.length})` : 'Buka di Signer';
+    el.save.disabled = pages.length === 0;
     el.done.disabled = pages.length === 0;
     el.count.hidden = pages.length === 0;
     el.count.textContent = `${pages.length} halaman siap`;
@@ -551,7 +553,7 @@
 
     if (mode === 'pages') {
       el.subtitle.textContent = pages.length
-        ? `${pages.length} halaman siap dibuat PDF`
+        ? `${pages.length} halaman siap disimpan jadi PDF`
         : 'Belum ada halaman';
     }
   }
@@ -570,52 +572,81 @@
     return `scan-${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}`;
   }
 
+  async function createPdf() {
+    if (!window.PDFLib) throw new Error('pdf-lib tidak tersedia');
+    const { PDFDocument } = PDFLib;
+    const doc = await PDFDocument.create();
+
+    for (const page of pages) {
+      const bytes = dataUrlToBytes(page.dataUrl);
+      const image = page.format === 'png'
+        ? await doc.embedPng(bytes)
+        : await doc.embedJpg(bytes);
+
+      const aspect = image.height / image.width;
+      let pw;
+      let ph;
+      if (aspect >= 1) {
+        pw = 595.28;
+        ph = pw * aspect;
+      } else {
+        ph = 595.28;
+        pw = ph / aspect;
+      }
+      const cap = Math.min(1, 1683.89 / Math.max(pw, ph));
+      pw *= cap;
+      ph *= cap;
+
+      const pdfPage = doc.addPage([pw, ph]);
+      pdfPage.drawImage(image, { x: 0, y: 0, width: pw, height: ph });
+    }
+
+    return { bytes: await doc.save(), name: scanName() };
+  }
+
+  function finishScan(ok) {
+    if (!ok) return;
+    clearBusy();
+    close();
+  }
+
   async function buildPdf() {
     if (busy || !pages.length || !api) return;
     setBusy('Membuat PDF…');
     await nextFrame();
 
     try {
-      if (!window.PDFLib) throw new Error('pdf-lib tidak tersedia');
-      const { PDFDocument } = PDFLib;
-      const doc = await PDFDocument.create();
-
-      for (const page of pages) {
-        const bytes = dataUrlToBytes(page.dataUrl);
-        const image = page.format === 'png'
-          ? await doc.embedPng(bytes)
-          : await doc.embedJpg(bytes);
-
-        const aspect = image.height / image.width;
-        let pw;
-        let ph;
-        if (aspect >= 1) {
-          pw = 595.28;
-          ph = pw * aspect;
-        } else {
-          ph = 595.28;
-          pw = ph / aspect;
-        }
-        const cap = Math.min(1, 1683.89 / Math.max(pw, ph));
-        pw *= cap;
-        ph *= cap;
-
-        const pdfPage = doc.addPage([pw, ph]);
-        pdfPage.drawImage(image, { x: 0, y: 0, width: pw, height: ph });
-      }
-
-      const bytes = await doc.save();
-      const name = scanName();
+      const { bytes, name } = await createPdf();
       const merge = !el.mergeWrap.hidden && el.merge.checked;
       const ok = merge
         ? await api.appendScan(bytes, name)
         : await api.openScan(bytes, name);
 
-      if (ok) close();
+      finishScan(ok);
     } catch (err) {
       console.error(err);
       if (api) {
         api.toast('Gagal membuat PDF: '
+          + (err && err.message ? err.message : 'kesalahan tidak diketahui'), 'error');
+      }
+    } finally {
+      clearBusy();
+    }
+  }
+
+  async function savePdf() {
+    if (busy || !pages.length || !api || typeof api.saveScan !== 'function') return;
+    setBusy('Menyimpan PDF…');
+    await nextFrame();
+
+    try {
+      const { bytes, name } = await createPdf();
+      const ok = await api.saveScan(bytes, name);
+      finishScan(ok);
+    } catch (err) {
+      console.error(err);
+      if (api) {
+        api.toast('Gagal menyimpan PDF: '
           + (err && err.message ? err.message : 'kesalahan tidak diketahui'), 'error');
       }
     } finally {
@@ -756,7 +787,8 @@
     el.count.hidden = true;
     el.done.disabled = true;
     el.build.disabled = true;
-    el.build.textContent = 'Buat PDF';
+    el.build.textContent = 'Buka di Signer';
+    el.save.disabled = true;
     renderChips();
     updatePagesUI();
   }
@@ -860,6 +892,7 @@
   el.accept.addEventListener('click', acceptCrop);
   el.again.addEventListener('click', showCamera);
   el.build.addEventListener('click', buildPdf);
+  el.save.addEventListener('click', savePdf);
 
   el.done.addEventListener('click', () => {
     if (!pages.length) {

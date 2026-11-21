@@ -152,11 +152,6 @@
 
 <div class="backdrop" id="backdrop" hidden></div>
 
-<div class="hint" id="hint" hidden>
-  <span>Ketuk halaman untuk menempelkan tanda tangan</span>
-  <button id="btnCancelPlace" class="btn small ghost" type="button">Batal</button>
-</div>
-
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <input type="file" id="filePdf" accept="application/pdf,.pdf" hidden>
@@ -249,7 +244,10 @@
     <div class="scan-foot" id="scanFootPages" hidden>
       <div class="scan-foot-row">
         <button id="scanAgain" class="scan-secondary" type="button">＋ Scan lagi</button>
-        <button id="scanBuild" class="scan-primary" type="button" disabled>Buat PDF</button>
+        <button id="scanBuild" class="scan-secondary" type="button" disabled>Buka di Signer</button>
+      </div>
+      <div class="scan-foot-row scan-foot-row-main">
+        <button id="scanSave" class="scan-primary" type="button" disabled>💾 Simpan PDF</button>
       </div>
     </div>
   </div>

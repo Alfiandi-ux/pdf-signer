@@ -21,13 +21,14 @@ PDF hasil ekspor disimpan ke **Download/PDF Signer/**.
   - Tarik 4 sudut untuk mengikuti tepi kertas — gambar otomatis diluruskan (koreksi perspektif).
   - Filter **Asli**, **Abu-abu**, dan **Hitam-putih** (ambang adaptif, tahan bayangan).
   - Pindai beberapa halaman, hapus yang gagal, lalu jadikan satu PDF.
-  - Hasil scan bisa dibuka sebagai dokumen baru atau **digabungkan ke PDF yang sedang dibuka**.
+  - Hasil scan bisa **langsung disimpan sebagai PDF**, dibuka sebagai dokumen baru,
+    atau **digabungkan ke PDF yang sedang dibuka**.
 - **Tiga cara membuat tanda tangan**
   - Gambar langsung dengan jari / mouse (ada undo, tebal pena, warna).
   - Ketik nama dengan font tulisan tangan (Great Vibes / Caveat, tersedia offline).
   - Unggah foto/gambar tanda tangan, dengan opsi menghapus latar putih.
 - **Tempel & atur di halaman PDF**
-  - Ketuk halaman untuk menempel, geser untuk memindah, tarik bulatan sudut untuk mengubah ukuran.
+  - Tanda tangan langsung ditempel di halaman aktif, geser untuk memindah, tarik bulatan sudut untuk mengubah ukuran.
   - Bisa menempel lebih dari satu tanda tangan, di halaman berbeda.
   - Halaman yang diputar (`/Rotate` 90°, 180°, 270°) didukung.
 - **Pratinjau PDF asli** (dirender dengan pdf.js) + navigasi halaman & zoom.
@@ -66,13 +67,15 @@ python3 -m http.server 8000
 Belum punya file PDF? Buka `contoh.pdf` yang disertakan untuk mencoba.
 
 1. Tekan **Buka PDF** (atau tarik file ke jendela), pilih file `.pdf`.
+   Untuk memindai kertas, tekan **Scan**, ambil foto, lalu pilih **Simpan PDF**
+   untuk menyimpan hasilnya langsung ke perangkat.
 2. Di panel kiri (di HP: tombol ✍), buat tanda tangan:
    - tab **Gambar** → corat-coret di kotak, atur tebal/warna;
    - tab **Ketik** → isi nama, pilih gaya huruf;
    - tab **Unggah** → pilih foto tanda tangan (centang “Hilangkan latar putih” bila perlu).
 3. Tekan **Gunakan tanda tangan ini** — tanda tangan langsung ditempel ke halaman.
 4. Geser tanda tangan untuk memindah; tarik bulatan di sudut kanan-bawah untuk mengubah ukuran.
-6. Tekan **Unduh PDF**. Hasil tersimpan sebagai `nama-file-signed.pdf`.
+5. Tekan **Unduh PDF**. Hasil tersimpan sebagai `nama-file-signed.pdf`.
 
 Tombol **Hapus** di toolbar (atau tombol × pada tanda tangan) untuk membuang
 tanda tangan yang sudah ditempel.
