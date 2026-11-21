@@ -13,9 +13,9 @@
     requestAnimationFrame(() => setTimeout(resolve, 40));
   });
 
-  const MAX_CAPTURE = 2400;   // sisi terpanjang foto yang disimpan di memori
-  const MAX_WARP = 1800;      // sisi terpanjang hasil koreksi perspektif
-  const MAX_PIXELS = 3.2e6;   // batas piksel agar pemrosesan tetap cepat
+  const MAX_CAPTURE = 3600;   // sisi terpanjang foto yang disimpan di memori
+  const MAX_WARP = 2800;      // sisi terpanjang hasil koreksi perspektif
+  const MAX_PIXELS = 6.0e6;   // batas piksel agar pemrosesan tetap aman di HP
 
   let api = null;
   let mode = 'camera';
@@ -159,8 +159,8 @@
         audio: false,
         video: {
           facingMode: { ideal: facing },
-          width: { ideal: 1920 },
-          height: { ideal: 1080 },
+          width: { ideal: 2560 },
+          height: { ideal: 1920 },
         },
       });
 
@@ -214,20 +214,56 @@
     el.torch.classList.toggle('active', torchOn && !el.torch.hidden);
   }
 
-  function capture() {
+  async function capture() {
     if (busy) return;
     if (!stream || !el.video.videoWidth) {
       if (api) api.toast('Kamera belum siap, coba lagi sebentar');
       return;
     }
-    const vw = el.video.videoWidth;
-    const vh = el.video.videoHeight;
-    const factor = Math.min(1, MAX_CAPTURE / Math.max(vw, vh));
-    const canvas = document.createElement('canvas');
-    canvas.width = Math.max(1, Math.round(vw * factor));
-    canvas.height = Math.max(1, Math.round(vh * factor));
-    canvas.getContext('2d').drawImage(el.video, 0, 0, canvas.width, canvas.height);
-    useSource(canvas);
+
+    setBusy('Mengambil foto…');
+    await nextFrame();
+
+    try {
+      let canvas = null;
+      const track = stream.getVideoTracks()[0];
+
+      // Ambil foto resolusi penuh bila didukung; frame video hanya jadi cadangan.
+      if (track && window.ImageCapture) {
+        try {
+          const photo = await Promise.race([
+            new ImageCapture(track).takePhoto(),
+            new Promise((_, reject) => {
+              setTimeout(() => reject(new Error('waktu pengambilan foto habis')), 4000);
+            }),
+          ]);
+          const bitmap = await loadBitmap(photo);
+          const factor = Math.min(1, MAX_CAPTURE / Math.max(bitmap.width, bitmap.height));
+          canvas = document.createElement('canvas');
+          canvas.width = Math.max(1, Math.round(bitmap.width * factor));
+          canvas.height = Math.max(1, Math.round(bitmap.height * factor));
+          canvas.getContext('2d').drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+          if (typeof bitmap.close === 'function') bitmap.close();
+        } catch (err) {
+          console.warn('Foto resolusi penuh tidak tersedia, memakai frame kamera', err);
+          canvas = null;
+        }
+      }
+
+      if (!canvas) {
+        const vw = el.video.videoWidth;
+        const vh = el.video.videoHeight;
+        const factor = Math.min(1, MAX_CAPTURE / Math.max(vw, vh));
+        canvas = document.createElement('canvas');
+        canvas.width = Math.max(1, Math.round(vw * factor));
+        canvas.height = Math.max(1, Math.round(vh * factor));
+        canvas.getContext('2d').drawImage(el.video, 0, 0, canvas.width, canvas.height);
+      }
+
+      useSource(canvas);
+    } finally {
+      clearBusy();
+    }
   }
 
   /* ------------------------ Sumber gambar --------------------------- */
@@ -405,8 +441,58 @@
 
   /* ---------------------------- Filter ------------------------------ */
 
+  /** Unsharp mask untuk kanal abu-abu (dipakai filter Abu-abu & Hitam-putih). */
+  function sharpenGray(gray, w, h, amount) {
+    if (amount <= 0 || w < 3 || h < 3) return;
+    const src = gray.slice();
+    const center = 1 + 4 * amount;
+    const edge = -amount;
+
+    for (let y = 1; y < h - 1; y++) {
+      const row = y * w;
+      for (let x = 1; x < w - 1; x++) {
+        const i = row + x;
+        const value = src[i] * center
+          + edge * (src[i - 1] + src[i + 1] + src[i - w] + src[i + w]);
+        gray[i] = value < 0 ? 0 : value > 255 ? 255 : Math.round(value);
+      }
+    }
+  }
+
+  /** Penajaman ringan untuk hasil scan berwarna. */
+  function sharpenCanvas(canvas, amount) {
+    if (amount <= 0) return;
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    const w = canvas.width;
+    const h = canvas.height;
+    if (w < 3 || h < 3) return;
+
+    const image = ctx.getImageData(0, 0, w, h);
+    const d = image.data;
+    const src = new Uint8ClampedArray(d);
+    const center = 1 + 4 * amount;
+    const edge = -amount;
+    const stride = w * 4;
+
+    for (let y = 1; y < h - 1; y++) {
+      for (let x = 1; x < w - 1; x++) {
+        const i = (y * w + x) * 4;
+        for (let c = 0; c < 3; c++) {
+          const value = src[i + c] * center
+            + edge * (src[i - 4 + c] + src[i + 4 + c] + src[i - stride + c] + src[i + stride + c]);
+          d[i + c] = value < 0 ? 0 : value > 255 ? 255 : value;
+        }
+      }
+    }
+
+    ctx.putImageData(image, 0, 0);
+  }
+
   function applyFilter(canvas, kind) {
-    if (kind === 'color') return;
+    if (kind === 'color') {
+      sharpenCanvas(canvas, 0.35);
+      return;
+    }
 
     const ctx = canvas.getContext('2d', { willReadFrequently: true });
     const w = canvas.width;
@@ -419,6 +505,9 @@
     for (let i = 0, p = 0; i < n; i++, p += 4) {
       gray[i] = (d[p] * 77 + d[p + 1] * 150 + d[p + 2] * 29) >> 8;
     }
+
+    // Pertajam dulu agar tepi huruf/gambar lebih tegas sebelum filter.
+    sharpenGray(gray, w, h, kind === 'gray' ? 0.6 : 0.5);
 
     if (kind === 'gray') {
       // Regangkan kontras berdasarkan histogram (buang 1% ekstrem).
@@ -740,10 +829,10 @@
     await nextFrame();
 
     try {
-      const out = downscale(warped, 2000);
+      const out = downscale(warped, MAX_WARP);
       const isPng = filter === 'bw';
       pages.push({
-        dataUrl: isPng ? out.toDataURL('image/png') : out.toDataURL('image/jpeg', 0.86),
+        dataUrl: isPng ? out.toDataURL('image/png') : out.toDataURL('image/jpeg', 0.9),
         format: isPng ? 'png' : 'jpeg',
         w: out.width,
         h: out.height,

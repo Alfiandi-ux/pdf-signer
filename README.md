@@ -18,7 +18,9 @@ PDF hasil ekspor disimpan ke **Download/PDF Signer/**.
 
 - **Scan dokumen dengan kamera**
   - Ambil foto langsung dari kamera belakang (ada senter & ganti kamera) atau pilih dari galeri.
+  - Foto diambil pada resolusi penuh bila perangkat mendukung.
   - Tarik 4 sudut untuk mengikuti tepi kertas — gambar otomatis diluruskan (koreksi perspektif).
+  - Hasil hingga ±2800 px dengan penajaman agar teks lebih tegas.
   - Filter **Asli**, **Abu-abu**, dan **Hitam-putih** (ambang adaptif, tahan bayangan).
   - Pindai beberapa halaman, hapus yang gagal, lalu jadikan satu PDF.
   - Hasil scan bisa **langsung disimpan sebagai PDF**, dibuka sebagai dokumen baru,
